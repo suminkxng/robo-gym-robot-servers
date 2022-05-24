@@ -13,7 +13,7 @@ def husky_pose_publisher():
     while not rospy.is_shutdown():
         try:
             model_state = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
-            model_coordinates = model_state('/', '')
+            model_coordinates = model_state('husky', '')
             pose = Pose()
             pose.position.x = model_coordinates.pose.position.x
             pose.position.y = model_coordinates.pose.position.y

@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 import rospy
 from geometry_msgs.msg import Twist, Pose, Pose2D, PoseStamped
 from nav_msgs.msg import Odometry
@@ -38,7 +38,7 @@ class RosBridge:
         else:
             rospy.Subscriber('husky_velocity_controller/odom', Odometry, self.callbackOdometry, queue_size=1) #husky_velocity_controller/odom
 
-        rospy.Subscriber('scan_rep117', LaserScan, self.LaserScan_callback)
+        rospy.Subscriber('scan', LaserScan, self.LaserScan_callback)
         rospy.Subscriber('husky_collision', ContactsState, self.collision_callback)
 
         self.target = [0.0] * 3

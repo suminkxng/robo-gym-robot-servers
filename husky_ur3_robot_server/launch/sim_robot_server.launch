@@ -11,6 +11,7 @@
   <include file="$(find husky_ur3_gazebo)/launch/husky_ur3_empty_world.launch">
     <arg name="world_name" value = "$(arg world)"/>
     <arg name="gui" value="$(arg gazebo_gui)"/>
+    <arg name="paused" value="true"/>
   </include>
 
     <!-- Launch fake localization node -->

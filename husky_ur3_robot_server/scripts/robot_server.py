@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import grpc
 import rospy
 from concurrent import futures
-from mir100_robot_server.ros_bridge import RosBridge
+from husky_ur3_robot_server.ros_bridge import RosBridge
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2, robot_server_pb2_grpc
 
 
