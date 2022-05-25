@@ -89,7 +89,7 @@ class RosBridge:
         self.target = [0.0] * 3
         self.husky_pose = [0.0] * 3
         self.husky_twist = [0.0] *2
-        self.scan = [0.0] * 700
+        self.scan = [0.0] * 542
         self.collision = False
         self.obstacle_0 = [0.0] * 3
         self.obstacle_1 = [0.0] * 3
@@ -173,10 +173,10 @@ class RosBridge:
             # Set Gazebo Target Model state
             self.set_model_state('target', copy.deepcopy(state[0:3]))
             # Set obstacles poses
-            if (len(state) > 708):
-                self.set_model_state('obstacle_0', copy.deepcopy(state[709:712]))
-                self.set_model_state('obstacle_1', copy.deepcopy(state[712:715]))
-                self.set_model_state('obstacle_2', copy.deepcopy(state[715:718]))
+            if (len(state) > 550):
+                self.set_model_state('obstacle_0', copy.deepcopy(state[551:554]))
+                self.set_model_state('obstacle_1', copy.deepcopy(state[554:557]))
+                self.set_model_state('obstacle_2', copy.deepcopy(state[557:560]))
 
         # Set reset Event
         self.reset.set()
@@ -302,7 +302,7 @@ class RosBridge:
     def LaserScan_callback(self,data):
         if self.get_state_event.isSet():
             scan = data.ranges
-            scan = scan[8:len(scan)-8] # remove first 8 and last 8 elements from laser scan because they are 0.0 in scan on husky
+            #scan = scan[8:len(scan)-8] # when you want remove first and last scan data activate this line
             #=list(filter(lambda a: a != 0.0, scan))   # remove all 0.0 values that are at beginning and end of scan list
             scan = np.array(scan)
             scan = np.nan_to_num(scan)
