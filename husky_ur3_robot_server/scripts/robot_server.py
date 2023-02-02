@@ -4,19 +4,23 @@ import grpc
 import rospy
 from concurrent import futures
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2, robot_server_pb2_grpc
-from geometry_msgs.msg import Twist, Pose, Pose2D, PoseStamped
+from geometry_msgs.msg import Twist, Pose, Pose2D, PoseStamped, PoseArray, Point
 from nav_msgs.msg import Odometry
 from gazebo_msgs.msg import ModelState, ContactsState
 from gazebo_msgs.srv import GetModelState, SetModelState
 from visualization_msgs.msg import Marker
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Path
+# from pedsim_msgs.msg  import AgentStates
 import PyKDL
 import tf2_ros
 import copy
 from tf_conversions import posemath
 from threading import Event
 import numpy as np
+from geometry_msgs.msg import *
+from leg_tracker.msg import LegArray, Leg, Person, PersonArray, Coordinates
+
 
 
 class RobotServerServicer(robot_server_pb2_grpc.RobotServerServicer):
@@ -59,7 +63,6 @@ def serve():
 
 
 
-
 class RosBridge:
 
     def __init__(self, real_robot=False):
@@ -85,15 +88,23 @@ class RosBridge:
 
         rospy.Subscriber('scan', LaserScan, self.LaserScan_callback)
         rospy.Subscriber('husky_collision', ContactsState, self.collision_callback)
+        rospy.Subscriber('people_tracked', PersonArray, self.update_humans)
 
         self.target = [0.0] * 3
         self.husky_pose = [0.0] * 3
-        self.husky_twist = [0.0] *2
+        self.husky_twist = [0.0] * 2
         self.scan = [0.0] * 542
         self.collision = False
-        self.obstacle_0 = [0.0] * 3
-        self.obstacle_1 = [0.0] * 3
-        self.obstacle_2 = [0.0] * 3
+        self.human_pose = [999] * 2
+        # self.human_pose_0 = [0.0] * 3
+        # self.human_pose_1 = [0.0] * 3
+        # self.human_pose_2 = [0.0] * 3
+        # self.real_human_pose = [0.0] * 9
+        # self.real_human_pose_1 = [0.0] * 3
+        # self.real_human_pose_2 = [0.0] * 3
+        # self.obstacle_0 = [0.0] * 3
+        # self.obstacle_1 = [0.0] * 3
+        # self.obstacle_2 = [0.0] * 3
 
         # Reference frame for Path
         self.path_frame = 'map'
@@ -114,6 +125,7 @@ class RosBridge:
             self.world_to_map = PyKDL.Frame(r, v)
 
         rospy.Subscriber('robot_pose', Pose, self.callbackState, queue_size=1)
+        # rospy.Subscriber("/pedsim_simulator/simulated_agents", AgentStates, self.actor_poses_callback)
 
         # Initialize Path
         self.husky_path = Path()
@@ -130,13 +142,21 @@ class RosBridge:
     def get_state(self):
         self.get_state_event.clear()
         # Get environment state
+        # state = []
         state = []
         target = copy.deepcopy(self.target)
         husky_pose = copy.deepcopy(self.husky_pose)
         husky_twist = copy.deepcopy(self.husky_twist)
         husky_scan = copy.deepcopy(self.scan)
         in_collision = copy.deepcopy(self.collision)
-        obstacles = [0.0] * 9
+        # obstacles = [0.0] * 9
+        human_pose = copy.deepcopy(self.human_pose)
+        # human_pose = [0.0] * 9
+        # human_pose_0 = copy.deepcopy(self.human_pose_0)
+        # human_pose_1 = copy.deepcopy(self.human_pose_1)
+        # human_pose_2 = copy.deepcopy(self.human_pose_2)
+        # human_pose = copy.deepcopy(self.human_pose)
+
 
         self.get_state_event.set()
 
@@ -147,7 +167,13 @@ class RosBridge:
         msg.state.extend(husky_twist)
         msg.state.extend(husky_scan)
         msg.state.extend([in_collision])
-        msg.state.extend(obstacles)
+        # msg.state.extend(obstacles)
+        # msg.state.extend(human_pose_0)
+        # msg.state.extend(human_pose_1)
+        # msg.state.extend(human_pose_2)
+        # msg.state.extend(human_pose) this one
+        msg.state.extend(human_pose)
+
         msg.success = 1
         
         return msg
@@ -172,11 +198,17 @@ class RosBridge:
             self.set_model_state('husky', copy.deepcopy(state[3:6]))
             # Set Gazebo Target Model state
             self.set_model_state('target', copy.deepcopy(state[0:3]))
-            # Set obstacles poses
-            if (len(state) > 550):
-                self.set_model_state('obstacle_0', copy.deepcopy(state[551:554]))
-                self.set_model_state('obstacle_1', copy.deepcopy(state[554:557]))
-                self.set_model_state('obstacle_2', copy.deepcopy(state[557:560]))
+            # Set obstacles(actors) poses
+            # if (len(state) > 550):
+            #     self.set_model_state('1', copy.deepcopy(state[551:554]))
+            #     if (len(state) > 553):
+            #         self.set_model_state('2', copy.deepcopy(state[554:557]))
+            #         if (len(state) > 556):
+            #             self.set_model_state('3', copy.deepcopy(state[557:560]))
+            # if (len(state) > 550):
+            #     self.set_model_state('human', copy.deepcopy(state[551:554]))
+                # self.set_model_state('actor_1', copy.deepcopy(state[554:557]))
+                # self.set_model_state('actor_2', copy.deepcopy(state[557:560]))
 
         # Set reset Event
         self.reset.set()
@@ -292,6 +324,25 @@ class RosBridge:
         else:
             pass
 
+    def update_humans(self, msg):
+        if self.reset.isSet():
+            humans = list()
+            ob = list()
+            for p in msg.people:
+                o = p.pose.orientation
+                orientation = PyKDL.Rotation.Quaternion(o.x, o.y, o.z, o.w)
+                euler_orientation = orientation.GetRPY()
+                yaw = euler_orientation[2]
+
+                human = (p.pose.position.x, p.pose.position.y)
+                humans.append(human)
+
+            for i, human in enumerate(humans):
+                self.human_pose = copy.deepcopy(human)
+
+        else:
+            pass
+
     def callbackOdometry(self, data):
         lin_vel = data.twist.twist.linear.x
         ang_vel = data.twist.twist.angular.z
@@ -317,7 +368,6 @@ class RosBridge:
             self.collision = False
         else:
             self.collision = True
-
 
 
 
